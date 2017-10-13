@@ -5,11 +5,11 @@ export PATH
 #=================================================
 #	System Required: CentOS/Debian/Ubuntu
 #	Description: Aria2
-#	Version: 1.0.1
+#	Version: 1.0.4
 #	Author: Toyo
 #	Blog: https://doub.io/shell-jc4/
 #=================================================
-sh_ver="1.0.1"
+sh_ver="1.0.4"
 file="/root/.aria2"
 aria2_conf="${file}/aria2.conf"
 aria2_log="/root/.aria2/aria2.log"
@@ -73,6 +73,14 @@ Service_aria2(){
 }
 Installation_dependency(){
 	if [[ ${release} = "centos" ]]; then
+		cat /etc/redhat-release |grep 7\..*|grep -i centos>/dev/null
+		if [[ $? = 1 ]]; then
+			echo -e "${Error} CentOS6 系统不支持安装 Aria2（源没有Aria2包），请更换 CentOS7 或其他系统安装 !" && exit 1
+		fi
+		wget -N --no-check-certificate http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+		[[ ! -e "epel-release-latest-7.noarch.rpm" ]] && echo -e "${Error} CentOS7 EPEL 源下载失败 !" && exit 1
+		rpm -ivh epel-release-latest-7.noarch.rpm
+		rm -rf epel-release-latest-7.noarch.rpm
 		yum update
 		yum install aria2 curl unzip vim -y
 	elif [[ ${release} = "debian" ]]; then
@@ -155,7 +163,6 @@ Uninstall_aria2(){
 		Read_config
 		Del_iptables
 		Save_iptables
-		rm -rf ${file} && rm -rf /etc/init.d/aria2
 		if [[ ${release} = "centos" ]]; then
 			chkconfig --del aria2
 			yum remove aria2 -y
@@ -163,6 +170,7 @@ Uninstall_aria2(){
 			update-rc.d -f aria2 remove
 			apt-get remove --purge aria2 -y
 		fi
+		rm -rf ${file}
 		echo && echo "Aria2 卸载完成 !" && echo
 	else
 		echo && echo "卸载已取消..." && echo
