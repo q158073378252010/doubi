@@ -5,7 +5,7 @@ export PATH
 #=================================================
 #	System Required: CentOS 6+/Debian 7+/Ubuntu 14.04+
 #	Description: ShadowsocksR Port-IP Check
-#	Version: 1.0.2
+#	Version: 1.0.6
 #	Author: Toyo
 #=================================================
 # ——————————————————————————————
@@ -43,57 +43,88 @@ check_pid(){
 }
 scan_port_centos(){
 	port=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp' | grep '::ffff:' |awk '{print $4}' |awk -F ":" '{print $NF}' |sort -u`
-	port_num=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp' | grep '::ffff:' |awk '{print $4}' |awk -F ":" '{print $NF}' |sort -u |wc -l`
+	port_num=`echo "${port}" |wc -l`
 	[[ -z ${port} ]] && echo -e "${Error} 没有发现正在链接的端口 !" && exit 1
 	[[ ${port_num} = 0 ]] && echo -e "${Error} 没有发现正在链接的端口 !" && exit 1
 }
 scan_port_debian(){
 	port=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp6' |awk '{print $4}' |awk -F ":" '{print $NF}' |sort -u`
-	port_num=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp6' |awk '{print $4}' |awk -F ":" '{print $NF}' |sort -u |wc -l`
+	port_num=`echo "${port}" |wc -l`
 	[[ -z ${port} ]] && echo -e "${Error} 没有发现正在链接的端口 !" && exit 1
 	[[ ${port_num} = 0 ]] && echo -e "${Error} 没有发现正在链接的端口 !" && exit 1
 }
 scan_ip_centos(){
 	ip=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp' | grep '::ffff:' |awk '{print $5}' |awk -F ":" '{print $4}' |sort -u`
-	ip_num=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp' | grep '::ffff:' |awk '{print $5}' |awk -F ":" '{print $4}' |sort -u |wc -l`
+	ip_num=`echo "${ip}" |wc -l`
 	[[ -z ${ip} ]] && echo -e "${Error} 没有发现正在链接的IP !" && exit 1
 	[[ ${ip_num} = 0 ]] && echo -e "${Error} 没有发现正在链接的IP !" && exit 1
 }
 scan_ip_debian(){
 	ip=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp6' |awk '{print $5}' |awk -F ":" '{print $1}' |sort -u`
-	ip_num=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp6' |awk '{print $5}' |awk -F ":" '{print $1}' |sort -u |wc -l`
+	ip_num=`echo "${ip}" |wc -l`
 	[[ -z ${ip} ]] && echo -e "${Error} 没有发现正在链接的IP !" && exit 1
 	[[ ${ip_num} = 0 ]] && echo -e "${Error} 没有发现正在链接的IP !" && exit 1
 }
 check_threshold_centos(){
 	for((integer = ${port_num}; integer >= 1; integer--))
 	do
-		port_check=`echo ${port} |awk '{print $'"$integer"'}'`
-		ip_check=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp' |grep "${port_check}" | grep '::ffff:' |awk '{print $5}' |awk -F ":" '{print $4}' |sort -u`
-		ip_num=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp' |grep "${port_check}" | grep '::ffff:' |awk '{print $5}' |awk -F ":" '{print $4}' |sort -u |wc -l`
-		ip_check=`echo ${ip_check}|sed 's/ / | /g'`
-		[[ ${ip_num} -ge ${IP_threshold} ]] && echo -e " 端口: ${Red_font_prefix}${port_check}${Font_color_suffix} ,IP总数: ${Red_font_prefix}${ip_num}${Font_color_suffix} ,IP: ${Sky_blue_font_prefix}$(echo ${ip_check})${Font_color_suffix}"
+		port_check=`echo "${port}" |sed -n "$integer"p`
+		ip_check_1=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp' |grep "${port_check}" | grep '::ffff:' |awk '{print $5}' |awk -F ":" '{print $4}' |sort -u`
+		ip_num=`echo "${ip_check_1}" |wc -l`
+		if [[ ${action_2} == "y" ]]; then
+			get_IP_address
+		else
+			ip_check=`echo -e "\n${ip_check_1}"`
+		fi
+		[[ ${ip_num} -ge ${IP_threshold} ]] && echo -e " 端口: ${Red_font_prefix}${port_check}${Font_color_suffix} ,IP总数: ${Red_font_prefix}${ip_num}${Font_color_suffix} ,IP: ${Sky_blue_font_prefix}$(echo "${ip_check}")${Font_color_suffix}"
+		ip_check=""
 	done
 }
 check_threshold_debian(){
+	[[ ${action_2} == "y" ]] && echo -e "${Tip} 检测IP归属地(ipip.net)，如果IP较多，可能时间会比较长..."
 	for((integer = ${port_num}; integer >= 1; integer--))
 	do
-		port_check=`echo ${port} |awk '{print $'"$integer"'}'`
-		ip_check=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp6' |grep "${port_check}" |awk '{print $5}' |awk -F ":" '{print $1}' |sort -u`
-		ip_num=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp6' |grep "${port_check}" |awk '{print $5}' |awk -F ":" '{print $1}' |sort -u |wc -l`
-		ip_check=`echo ${ip_check}|sed 's/ / | /g'`
-		[[ ${ip_num} -ge ${IP_threshold} ]] && echo -e " 端口: ${Red_font_prefix}${port_check}${Font_color_suffix} ,IP总数: ${Red_font_prefix}${ip_num}${Font_color_suffix} ,IP: ${Sky_blue_font_prefix}$(echo ${ip_check})${Font_color_suffix}"
+		port_check=`echo "${port}" |sed -n "$integer"p`
+		ip_check_1=`netstat -anp |grep 'ESTABLISHED' |grep 'python' |grep 'tcp6' |grep "${port_check}" |awk '{print $5}' |awk -F ":" '{print $1}' |sort -u`
+		ip_num=`echo "${ip_check_1}" |wc -l`
+		if [[ ${action_2} == "y" ]]; then
+			get_IP_address
+		else
+			ip_check=`echo -e "\n${ip_check_1}"`
+		fi
+		[[ ${ip_num} -ge ${IP_threshold} ]] && echo -e " 端口: ${Red_font_prefix}${port_check}${Font_color_suffix} ,IP总数: ${Red_font_prefix}${ip_num}${Font_color_suffix} ,IP: ${Sky_blue_font_prefix}$(echo "${ip_check}")${Font_color_suffix}"
+		ip_check=""
 	done
+}
+get_IP_address(){
+	#echo "port_check=${port_check}"
+	#echo "ip_check_1=${ip_check_1}"
+	if [[ ${ip_num} -ge ${IP_threshold} ]]; then
+		if [[ ! -z ${ip_check_1} ]]; then
+			#echo "ip_num=${ip_num}"
+			for((integer_1 = ${ip_num}; integer_1 >= 1; integer_1--))
+			do
+				IP=`echo "${ip_check_1}" |sed -n "$integer_1"p`
+				#echo "IP=${IP}"
+				IP_address=`wget -qO- -t1 -T2 http://freeapi.ipip.net/${IP}|sed 's/\"//g;s/,//g;s/\[//g;s/\]//g'`
+				#echo "IP_address=${IP_address}"
+				ip_check="${ip_check}\n${IP}(${IP_address})"
+				#echo "ip_check=${ip_check}"
+				# echo "${IP}(${IP_address})"
+				sleep 1s
+			done
+		fi
+	fi
 }
 c_ssr(){
 	check_pid
 	if [[ ${release} == "centos" ]]; then
 		scan_port_centos
-		echo -e "当前时间：${Yellow_font_prefix}$(date "+%Y-%m-%d %H:%I:%S %u %Z")${Font_color_suffix}\n"
+		echo -e "当前时间：${Yellow_font_prefix}$(date "+%Y-%m-%d %H:%M:%S %u %Z")${Font_color_suffix}\n"
 		check_threshold_centos
 	else
 		scan_port_debian
-		echo -e "当前时间：${Yellow_font_prefix}$(date "+%Y-%m-%d %H:%I:%S %u %Z")${Font_color_suffix}\n"
+		echo -e "当前时间：${Yellow_font_prefix}$(date "+%Y-%m-%d %H:%M:%S %u %Z")${Font_color_suffix}\n"
 		check_threshold_debian
 	fi
 }
@@ -103,19 +134,19 @@ a_ssr(){
 	if [[ ${release} == "centos" ]]; then
 		scan_port_centos
 		scan_ip_centos
-		echo -e "当前时间：${Yellow_font_prefix}$(date "+%Y-%m-%d %H:%I:%S %u %Z")${Font_color_suffix} ,当前链接的端口共 ${Red_font_prefix}${port_num}${Font_color_suffix} ,当前链接的IP共 ${Red_font_prefix}${ip_num}${Font_color_suffix} \n"
+		echo -e "当前时间：${Yellow_font_prefix}$(date "+%Y-%m-%d %H:%M:%S %u %Z")${Font_color_suffix} ,当前链接的端口共 ${Red_font_prefix}${port_num}${Font_color_suffix} ,当前链接的IP共 ${Red_font_prefix}${ip_num}${Font_color_suffix} \n"
 		check_threshold_centos
 	else
 		scan_port_debian
 		scan_ip_debian
-		echo -e "当前时间：${Yellow_font_prefix}$(date "+%Y-%m-%d %H:%I:%S %u %Z")${Font_color_suffix} ,当前链接的端口共 ${Red_font_prefix}${port_num}${Font_color_suffix} ,当前链接的IP共 ${Red_font_prefix}${ip_num}${Font_color_suffix} \n"
+		echo -e "当前时间：${Yellow_font_prefix}$(date "+%Y-%m-%d %H:%M:%S %u %Z")${Font_color_suffix} ,当前链接的端口共 ${Red_font_prefix}${port_num}${Font_color_suffix} ,当前链接的IP共 ${Red_font_prefix}${ip_num}${Font_color_suffix} \n"
 		check_threshold_debian
 	fi
-	
 }
 check_sys
 [[ ${release} != "debian" ]] && [[ ${release} != "ubuntu" ]] && [[ ${release} != "centos" ]] && echo -e "${Error} 本脚本不支持当前系统 ${release} !" && exit 1
 action=$1
+action_2=$2
 [[ -z $1 ]] && action=c
 case "$action" in
     c|a)
@@ -125,6 +156,7 @@ case "$action" in
     echo -e "输入错误 !
  用法: 
  c 检查并显示 超过IP阈值的端口
- a 显示当前 所有端口IP连接信息"
+ a 显示当前 所有端口IP连接信息
+ y 显示IP归属地(这是第二个参数如：bash ssr_ip_check.sh a y)"
     ;;
 esac
